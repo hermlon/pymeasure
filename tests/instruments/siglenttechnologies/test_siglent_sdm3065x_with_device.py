@@ -27,26 +27,35 @@ import pytest
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import SDM3065X, Mode
 from pymeasure.units import ureg
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def sdm3065x(connected_device_address):
     instr = SDM3065X(connected_device_address)
     return instr
 
+
 def test_get_instrument_id(sdm3065x):
-    assert 'Siglent Technologies,SDM3065X' in sdm3065x.id
+    assert "Siglent Technologies,SDM3065X" in sdm3065x.id
 
 
-@pytest.mark.parametrize('mode', list(Mode))
+def test_reset(sdm3065x):
+    sdm3065x.reset()
+    assert sdm3065x.mode == Mode.VOLTAGE_DC
+
+
+@pytest.mark.parametrize("mode", list(Mode))
 def test_set_mode(sdm3065x, mode):
     sdm3065x.mode = mode
     assert sdm3065x.mode == mode
 
-@pytest.mark.parametrize('mode', [Mode.CURRENT_DC, Mode.CURRENT_AC])
+
+@pytest.mark.parametrize("mode", [Mode.CURRENT_DC, Mode.CURRENT_AC])
 def test_get_current(sdm3065x, mode):
     sdm3065x.mode = mode
     assert sdm3065x.current
 
-@pytest.mark.parametrize('mode', [Mode.VOLTAGE_DC, Mode.VOLTAGE_AC])
+
+@pytest.mark.parametrize("mode", [Mode.VOLTAGE_DC, Mode.VOLTAGE_AC])
 def test_get_voltage(sdm3065x, mode):
     sdm3065x.mode = mode
     assert sdm3065x.voltage
