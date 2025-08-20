@@ -24,11 +24,22 @@
 
 import pytest
 
-from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import Mode
+from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import Mode, OnOff
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
     SDM3065XSC,
     LoopMode,
     CycleMode,
+    VoltageChannelModeVoltage,
+    VoltageChannelModeResistance,
+    VoltageChannelModeCapacitance,
+    VoltageChannelMode,
+    CurrentChannelMode,
+    VoltageRange,
+    ResistanceRange,
+    CapacitanceRange,
+    CurrentRange,
+    ChannelSpeed,
+    VoltageChannelConfig,
 )
 from pymeasure.units import ureg
 
@@ -56,7 +67,7 @@ def test_scan_card_start(sdm3065xsc, sc_start):
     assert not sdm3065xsc.sc_start
 
 
-@pytest.mark.parametrize("loop_mode", [LoopMode.SCAN, LoopMode.STEP])
+@pytest.mark.parametrize("loop_mode", list(LoopMode))
 def test_function(sdm3065xsc, loop_mode):
     sdm3065xsc.sc_loop_mode = loop_mode
     assert sdm3065xsc.sc_loop_mode == loop_mode
@@ -68,7 +79,7 @@ def test_delay(sdm3065xsc, delay):
     assert sdm3065xsc.sc_delay == delay
 
 
-@pytest.mark.parametrize("cycle_mode", [CycleMode.AUTO, CycleMode.MANUAL])
+@pytest.mark.parametrize("cycle_mode", list(CycleMode))
 def test_cycle_mode(sdm3065xsc, cycle_mode):
     sdm3065xsc.sc_cycle_mode = cycle_mode
     assert sdm3065xsc.sc_cycle_mode == cycle_mode
@@ -88,3 +99,37 @@ def test_sc_limit(sdm3065xsc, ch_low, ch_high):
     sdm3065xsc.sc_ch_limit_high = ch_high
     assert sdm3065xsc.sc_ch_limit_low == ch_low
     assert sdm3065xsc.sc_ch_limit_high == ch_high
+
+
+@pytest.mark.parametrize("ch", range(1, 2))
+def test_channel_voltage(sdm3065xsc, ch):
+    print("hi")
+    import time
+
+    # print(getattr(sdm3065xsc, f"ch_{ch}").voltage)
+    sdm3065xsc.sc_enabled = True
+    sdm3065xsc.sc_cycle_mode = CycleMode.MANUAL
+    sdm3065xsc.sc_count = 2
+    sdm3065xsc.sc_ch_limit_low = 1
+    sdm3065xsc.sc_ch_limit_high = 2
+    sdm3065xsc.sc_start = True
+    time.sleep(2)
+    print(sdm3065xsc.ch_1.voltage)
+    print(sdm3065xsc.ch_1.voltage)
+    sdm3065xsc.ch_1.switch = False
+    # sdm3065xsc.sc_start = False
+
+
+@pytest.mark.parametrize("ch", range(1, 13))
+@pytest.mark.parametrize("switch", list(OnOff))
+@pytest.mark.parametrize("mode", list(VoltageChannelMode))
+@pytest.mark.parametrize("count", range(1, 3))
+def test_voltage_channel_config(sdm3065xsc, ch, switch, mode, count):
+    channel = getattr(sdm3065xsc, f"ch_{ch}")
+    sdm3065xsc.sc_enabled = True
+    conf = VoltageChannelConfig(switch, mode, count=count)
+    channel.config = conf
+    assert str(channel.config) == str(conf)
+
+
+# TODO: test other channel modes, possibly extract test code to fixture

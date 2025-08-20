@@ -21,14 +21,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-import logging
 from enum import StrEnum
-from pymeasure.instruments import Instrument, SCPIMixin
+
+from pymeasure.instruments import Instrument
 from pymeasure.instruments.channel import Channel
 from pymeasure.instruments.validators import (
     strict_discrete_range,
     strict_discrete_set,
-    truncated_range,
 )
 from pymeasure.units import ureg
 
@@ -45,6 +44,241 @@ class CycleMode(StrEnum):
     MANUAL = "OFF"
 
 
+class VoltageChannelModeVoltage(StrEnum):
+    VOLTAGE_DC = "DCV"
+    VOLTAGE_AC = "ACV"
+    FREQUENCY = "FRQ"
+
+
+class VoltageChannelModeResistance(StrEnum):
+    R2WIRE = "2W"
+    R4WIRE = "4W"
+
+
+class VoltageChannelModeCapacitance(StrEnum):
+    CAPACITANCE = "CAP"
+
+
+class VoltageChannelMode(StrEnum):
+    CONTINUITY = "CONT"
+    DIODE = "DIO"
+    TEMPERATURE = "TEMP"
+
+
+class CurrentChannelMode(StrEnum):
+    CURRENT_DC = "DCI"
+    CURRENT_AC = "ACI"
+
+
+class VoltageRange(StrEnum):
+    AUTO = "AUTO"
+    V_200ML = "200MLV"
+    V_2 = "2V"
+    V_20 = "20V"
+    V_200 = "200V"
+
+
+class ResistanceRange(StrEnum):
+    AUTO = "AUTO"
+    OHM_200 = "200OHM"
+    OHM_2K = "2KOHM"
+    OHM_20K = "20KOHM"
+    OHM_200K = "200KOHM"
+    OHM_2MG = "2MGOHM"
+    OHM_10MG = "10MGOHM"
+    OHM_100MG = "100MGOHM"
+
+
+class CapacitanceRange(StrEnum):
+    AUTO = "AUTO"
+    F_2N = "2NF"
+    F_20N = "20NF"
+    F_200N = "200NF"
+    F_2U = "2UF"
+    F_20U = "20UF"
+    F_200U = "200UF"
+    F_10000U = "10000UF"
+
+
+class CurrentRange(StrEnum):
+    A_2 = "2A"
+
+
+class ChannelSpeed(StrEnum):
+    SLOW = "SLOW"
+    FAST = "FAST"
+
+
+class ChannelConfig:
+    def __init__(
+        self,
+        switch: bool,
+        mode: VoltageChannelMode
+        | VoltageChannelModeVoltage
+        | VoltageChannelModeResistance
+        | VoltageChannelModeCapacitance
+        | CurrentChannelMode,
+        range: VoltageRange | ResistanceRange | CapacitanceRange | CurrentRange | None = None,
+        speed: ChannelSpeed | None = None,
+        count=1,
+    ):
+        self._switch = switch
+        self._mode = mode
+        self._range = range
+        self._speed = speed
+        self._count = count
+        self.validate()
+
+    def validate(self):
+        pass
+
+    def __str__(self):
+        # when mode is VoltageChannelMode
+        if self._range is None and self._speed is None:
+            assert self._mode in VoltageChannelMode
+            return ",".join([OnOff(self._switch), self._mode, str(self._count)])
+        else:
+            return ",".join(
+                [OnOff(self._switch), self._mode, self._range, self._speed, str(self._count)]
+            )
+
+
+class VoltageChannelConfig(ChannelConfig):
+    def __init__(
+        self,
+        switch: bool,
+        mode: VoltageChannelMode
+        | VoltageChannelModeVoltage
+        | VoltageChannelModeResistance
+        | VoltageChannelModeCapacitance,
+        range: VoltageRange | ResistanceRange | CapacitanceRange | None = None,
+        speed: ChannelSpeed | None = None,
+        count=1,
+    ):
+        super().__init__(switch, mode, range, speed, count)
+
+    def validate(self):
+        assert (
+            (self._mode in VoltageChannelMode and self._range is None and self._speed is None)
+            or (
+                self._mode in VoltageChannelModeVoltage
+                and self._range in VoltageRange
+                and self._speed in ChannelSpeed
+            )
+            or (
+                self._mode in VoltageChannelModeResistance
+                and self._range in ResistanceRange
+                and self._speed in ChannelSpeed
+            )
+            or (
+                self._mode in VoltageChannelModeCapacitance
+                and self._range in CapacitanceRange
+                and self._speed in ChannelSpeed
+            )
+            or (
+                self._mode in CurrentChannelMode
+                and self._range in CurrentRange
+                and self._speed in ChannelSpeed
+            )
+        )
+
+    def __repr__(self):
+        return (
+            f"VoltageChannelConfig(switch={self._switch!r}, mode={self._mode!r},"
+            + f" range={self._range!r}, speed={self._speed!r}, count={self._count!r})"
+        )
+
+    @classmethod
+    def from_list(cls, lst):
+        switch, mode, range, speed, count = lst
+        if mode in VoltageChannelMode:
+            return ChannelConfig(OnOff(switch), VoltageChannelMode(mode), count=int(count))
+        else:
+            if mode in VoltageChannelModeVoltage:
+                enum_mode, enum_range = VoltageChannelModeVoltage(mode), VoltageRange(range)
+            if mode in VoltageChannelModeResistance:
+                enum_mode, enum_range = VoltageChannelModeResistance(mode), ResistanceRange(range)
+            if mode in VoltageChannelModeCapacitance:
+                enum_mode, enum_range = VoltageChannelModeCapacitance(mode), CapacitanceRange(range)
+            return ChannelConfig(
+                OnOff(switch),
+                enum_mode,
+                enum_range,
+                ChannelSpeed(speed),
+                int(count),
+            )
+
+
+class CurrentChannelConfig(ChannelConfig):
+    def __init__(
+        self,
+        switch: bool,
+        mode: CurrentChannelMode,
+        range: CurrentRange,
+        speed: ChannelSpeed,
+        count=1,
+    ):
+        super().__init__(switch, mode, range, speed, count)
+
+    def validate(self):
+        assert (
+            self._mode in CurrentChannelMode
+            and self._range in CurrentRange
+            and self._speed in ChannelSpeed
+        )
+
+    def __repr__(self):
+        return (
+            f"CurrentChannelConfig(switch={self._switch!r}, mode={self._mode!r},"
+            + f" range={self._range!r}, speed={self._speed!r}, count={self._count!r})"
+        )
+
+    @classmethod
+    def from_list(cls, lst):
+        switch, mode, range, speed, count = lst
+        return ChannelConfig(
+            OnOff(switch),
+            CurrentChannelMode(mode),
+            CurrentRange(range),
+            ChannelSpeed(speed),
+            int(count),
+        )
+
+
+class VoltageChannel(Channel):
+    voltage = Channel.measurement(
+        "ROUTe:DATA? {ch}",
+        """Measure a DC or AC voltage in Volt.""",
+        preprocess_reply=lambda v: v.split(" ")[0],
+        get_process=lambda v: ureg.Quantity(v, ureg.V),
+    )
+
+    config = Channel.control(
+        "ROUTe:CHANnel? {ch}",
+        "ROUTe:CHANnel {ch},%s",
+        """""",
+        get_process_list=lambda v: VoltageChannelConfig.from_list(v[1:]),
+        check_set_errors=True,
+    )
+
+
+class CurrentChannel(Channel):
+    current = Channel.measurement(
+        "ROUTe:DATA? {ch}",
+        """Measure a DC or AC current in Ampere.""",
+        preprocess_reply=lambda v: v.split(" ")[0],
+        get_process=lambda v: ureg.Quantity(v, ureg.A),
+    )
+
+    config = Channel.control(
+        "ROUTe:CHANnel? {ch}",
+        "ROUTe:CHANnel {ch},%s",
+        """""",
+        get_process_list=lambda v: CurrentChannelConfig.from_list(v[1:]),
+        check_set_errors=True,
+    )
+
+
 class SDM3065XSC(SDM3065X):
     """Siglent SDM3065X-SC Digital Multimeter with scan card installed."""
 
@@ -57,6 +291,23 @@ class SDM3065XSC(SDM3065X):
             **kwargs,
         )
         assert self.sc_installed
+
+    ch_1 = Instrument.ChannelCreator(VoltageChannel, "1")
+    ch_2 = Instrument.ChannelCreator(VoltageChannel, "2")
+    ch_3 = Instrument.ChannelCreator(VoltageChannel, "3")
+    ch_4 = Instrument.ChannelCreator(VoltageChannel, "4")
+    ch_5 = Instrument.ChannelCreator(VoltageChannel, "5")
+    ch_6 = Instrument.ChannelCreator(VoltageChannel, "6")
+    ch_7 = Instrument.ChannelCreator(VoltageChannel, "7")
+    ch_8 = Instrument.ChannelCreator(VoltageChannel, "8")
+    ch_9 = Instrument.ChannelCreator(VoltageChannel, "9")
+    ch_10 = Instrument.ChannelCreator(VoltageChannel, "10")
+    ch_11 = Instrument.ChannelCreator(VoltageChannel, "11")
+    ch_12 = Instrument.ChannelCreator(VoltageChannel, "12")
+    ch_13 = Instrument.ChannelCreator(CurrentChannel, "13")
+    ch_14 = Instrument.ChannelCreator(CurrentChannel, "14")
+    ch_15 = Instrument.ChannelCreator(CurrentChannel, "15")
+    ch_16 = Instrument.ChannelCreator(CurrentChannel, "16")
 
     sc_installed = Instrument.measurement(
         "ROUTe:STATe?",
