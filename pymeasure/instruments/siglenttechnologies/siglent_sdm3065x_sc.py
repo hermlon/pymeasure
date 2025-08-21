@@ -47,7 +47,6 @@ class CycleMode(StrEnum):
 class VoltageChannelModeVoltage(StrEnum):
     VOLTAGE_DC = "DCV"
     VOLTAGE_AC = "ACV"
-    FREQUENCY = "FRQ"
 
 
 class VoltageChannelModeResistance(StrEnum):
@@ -55,11 +54,15 @@ class VoltageChannelModeResistance(StrEnum):
     R4WIRE = "4W"
 
 
+class VoltageChannelModeFrequency(StrEnum):
+    FREQUENCY = "FRQ"
+
+
 class VoltageChannelModeCapacitance(StrEnum):
     CAPACITANCE = "CAP"
 
 
-class VoltageChannelMode(StrEnum):
+class VoltageChannelModeNoRange(StrEnum):
     CONTINUITY = "CONT"
     DIODE = "DIO"
     TEMPERATURE = "TEMP"
@@ -84,7 +87,7 @@ class ResistanceRange(StrEnum):
     OHM_2K = "2KOHM"
     OHM_20K = "20KOHM"
     OHM_200K = "200KOHM"
-    OHM_2MG = "2MGOHM"
+    OHM_1MG = "1MGOHM"
     OHM_10MG = "10MGOHM"
     OHM_100MG = "100MGOHM"
 
@@ -97,7 +100,9 @@ class CapacitanceRange(StrEnum):
     F_2U = "2UF"
     F_20U = "20UF"
     F_200U = "200UF"
-    F_10000U = "10000UF"
+    F_2M = "2MF"
+    F_20M = "20MF"
+    F_100M = "100MF"
 
 
 class CurrentRange(StrEnum):
@@ -113,18 +118,19 @@ class ChannelConfig:
     def __init__(
         self,
         switch: bool,
-        mode: VoltageChannelMode
+        mode: VoltageChannelModeNoRange
         | VoltageChannelModeVoltage
         | VoltageChannelModeResistance
         | VoltageChannelModeCapacitance
+        | VoltageChannelModeFrequency
         | CurrentChannelMode,
-        range: VoltageRange | ResistanceRange | CapacitanceRange | CurrentRange | None = None,
+        mrange: VoltageRange | ResistanceRange | CapacitanceRange | CurrentRange | None = None,
         speed: ChannelSpeed | None = None,
         count=1,
     ):
         self._switch = switch
         self._mode = mode
-        self._range = range
+        self._mrange = mrange
         self._speed = speed
         self._count = count
         self.validate()
@@ -133,13 +139,16 @@ class ChannelConfig:
         pass
 
     def __str__(self):
-        # when mode is VoltageChannelMode
-        if self._range is None and self._speed is None:
-            assert self._mode in VoltageChannelMode
+        # for VoltageChannelMode
+        if self._mrange is None and self._speed is None:
+            assert self._mode in VoltageChannelModeNoRange
             return ",".join([OnOff(self._switch), self._mode, str(self._count)])
+        # for VoltageChannelModeCapacitance and VoltageChannelModeFrequency
+        elif self._speed is None:
+            return ",".join([OnOff(self._switch), self._mode, self._mrange, str(self._count)])
         else:
             return ",".join(
-                [OnOff(self._switch), self._mode, self._range, self._speed, str(self._count)]
+                [OnOff(self._switch), self._mode, self._mrange, self._speed, str(self._count)]
             )
 
 
@@ -147,37 +156,47 @@ class VoltageChannelConfig(ChannelConfig):
     def __init__(
         self,
         switch: bool,
-        mode: VoltageChannelMode
+        mode: VoltageChannelModeNoRange
         | VoltageChannelModeVoltage
         | VoltageChannelModeResistance
-        | VoltageChannelModeCapacitance,
-        range: VoltageRange | ResistanceRange | CapacitanceRange | None = None,
+        | VoltageChannelModeCapacitance
+        | VoltageChannelModeFrequency,
+        mrange: VoltageRange | ResistanceRange | CapacitanceRange | None = None,
         speed: ChannelSpeed | None = None,
         count=1,
     ):
-        super().__init__(switch, mode, range, speed, count)
+        super().__init__(switch, mode, mrange, speed, count)
 
     def validate(self):
         assert (
-            (self._mode in VoltageChannelMode and self._range is None and self._speed is None)
+            (
+                self._mode in VoltageChannelModeNoRange
+                and self._mrange is None
+                and self._speed is None
+            )
             or (
                 self._mode in VoltageChannelModeVoltage
-                and self._range in VoltageRange
+                and self._mrange in VoltageRange
                 and self._speed in ChannelSpeed
             )
             or (
                 self._mode in VoltageChannelModeResistance
-                and self._range in ResistanceRange
+                and self._mrange in ResistanceRange
                 and self._speed in ChannelSpeed
             )
             or (
                 self._mode in VoltageChannelModeCapacitance
-                and self._range in CapacitanceRange
-                and self._speed in ChannelSpeed
+                and self._mrange in CapacitanceRange
+                and self._speed is None
+            )
+            or (
+                self._mode in VoltageChannelModeFrequency
+                and self._mrange in VoltageRange
+                and self._speed is None
             )
             or (
                 self._mode in CurrentChannelMode
-                and self._range in CurrentRange
+                and self._mrange in CurrentRange
                 and self._speed in ChannelSpeed
             )
         )
@@ -185,26 +204,44 @@ class VoltageChannelConfig(ChannelConfig):
     def __repr__(self):
         return (
             f"VoltageChannelConfig(switch={self._switch!r}, mode={self._mode!r},"
-            + f" range={self._range!r}, speed={self._speed!r}, count={self._count!r})"
+            + f" mrange={self._mrange!r}, speed={self._speed!r}, count={self._count!r})"
         )
 
     @classmethod
     def from_list(cls, lst):
-        switch, mode, range, speed, count = lst
-        if mode in VoltageChannelMode:
-            return ChannelConfig(OnOff(switch), VoltageChannelMode(mode), count=int(count))
+        switch, mode, mrange, speed, count = lst
+        if mode in VoltageChannelModeNoRange:
+            return ChannelConfig(OnOff(switch), VoltageChannelModeNoRange(mode), count=int(count))
         else:
             if mode in VoltageChannelModeVoltage:
-                enum_mode, enum_range = VoltageChannelModeVoltage(mode), VoltageRange(range)
+                enum_mode, enum_mrange, enum_speed = (
+                    VoltageChannelModeVoltage(mode),
+                    VoltageRange(mrange),
+                    ChannelSpeed(speed),
+                )
             if mode in VoltageChannelModeResistance:
-                enum_mode, enum_range = VoltageChannelModeResistance(mode), ResistanceRange(range)
+                enum_mode, enum_mrange, enum_speed = (
+                    VoltageChannelModeResistance(mode),
+                    ResistanceRange(mrange),
+                    ChannelSpeed(speed),
+                )
             if mode in VoltageChannelModeCapacitance:
-                enum_mode, enum_range = VoltageChannelModeCapacitance(mode), CapacitanceRange(range)
+                enum_mode, enum_mrange, enum_speed = (
+                    VoltageChannelModeCapacitance(mode),
+                    CapacitanceRange(mrange),
+                    None,
+                )
+            if mode in VoltageChannelModeFrequency:
+                enum_mode, enum_mrange, enum_speed = (
+                    VoltageChannelModeFrequency(mode),
+                    VoltageRange(mrange),
+                    None,
+                )
             return ChannelConfig(
                 OnOff(switch),
                 enum_mode,
-                enum_range,
-                ChannelSpeed(speed),
+                enum_mrange,
+                enum_speed,
                 int(count),
             )
 
@@ -214,32 +251,32 @@ class CurrentChannelConfig(ChannelConfig):
         self,
         switch: bool,
         mode: CurrentChannelMode,
-        range: CurrentRange,
+        mrange: CurrentRange,
         speed: ChannelSpeed,
         count=1,
     ):
-        super().__init__(switch, mode, range, speed, count)
+        super().__init__(switch, mode, mrange, speed, count)
 
     def validate(self):
         assert (
             self._mode in CurrentChannelMode
-            and self._range in CurrentRange
+            and self._mrange in CurrentRange
             and self._speed in ChannelSpeed
         )
 
     def __repr__(self):
         return (
             f"CurrentChannelConfig(switch={self._switch!r}, mode={self._mode!r},"
-            + f" range={self._range!r}, speed={self._speed!r}, count={self._count!r})"
+            + f" mrange={self._mrange!r}, speed={self._speed!r}, count={self._count!r})"
         )
 
     @classmethod
     def from_list(cls, lst):
-        switch, mode, range, speed, count = lst
+        switch, mode, mrange, speed, count = lst
         return ChannelConfig(
             OnOff(switch),
             CurrentChannelMode(mode),
-            CurrentRange(range),
+            CurrentRange(mrange),
             ChannelSpeed(speed),
             int(count),
         )
@@ -253,13 +290,31 @@ class VoltageChannel(Channel):
         get_process=lambda v: ureg.Quantity(v, ureg.V),
     )
 
+    def validate_config(v, vs):
+        assert isinstance(v, VoltageChannelConfig)
+        return v
+
     config = Channel.control(
         "ROUTe:CHANnel? {ch}",
         "ROUTe:CHANnel {ch},%s",
         """""",
+        validator=validate_config,
         get_process_list=lambda v: VoltageChannelConfig.from_list(v[1:]),
         check_set_errors=True,
+        dynamic=True,
     )
+
+
+class VoltageChannelNo4W(VoltageChannel):
+    # this is a dynamic property that gets called instead of VoltageChannel's config.validator
+    def config_validator(v, vs):
+        assert isinstance(v, VoltageChannelConfig)
+        if v._mode == VoltageChannelModeResistance.R4WIRE:
+            raise ValueError(
+                "4W mode is only allowed on channels 1 to 6. For each channel with 4W enabled,"
+                + " the channel number +6 will be switched off automatically"
+            )
+        return v
 
 
 class CurrentChannel(Channel):
@@ -298,12 +353,12 @@ class SDM3065XSC(SDM3065X):
     ch_4 = Instrument.ChannelCreator(VoltageChannel, "4")
     ch_5 = Instrument.ChannelCreator(VoltageChannel, "5")
     ch_6 = Instrument.ChannelCreator(VoltageChannel, "6")
-    ch_7 = Instrument.ChannelCreator(VoltageChannel, "7")
-    ch_8 = Instrument.ChannelCreator(VoltageChannel, "8")
-    ch_9 = Instrument.ChannelCreator(VoltageChannel, "9")
-    ch_10 = Instrument.ChannelCreator(VoltageChannel, "10")
-    ch_11 = Instrument.ChannelCreator(VoltageChannel, "11")
-    ch_12 = Instrument.ChannelCreator(VoltageChannel, "12")
+    ch_7 = Instrument.ChannelCreator(VoltageChannelNo4W, "7")
+    ch_8 = Instrument.ChannelCreator(VoltageChannelNo4W, "8")
+    ch_9 = Instrument.ChannelCreator(VoltageChannelNo4W, "9")
+    ch_10 = Instrument.ChannelCreator(VoltageChannelNo4W, "10")
+    ch_11 = Instrument.ChannelCreator(VoltageChannelNo4W, "11")
+    ch_12 = Instrument.ChannelCreator(VoltageChannelNo4W, "12")
     ch_13 = Instrument.ChannelCreator(CurrentChannel, "13")
     ch_14 = Instrument.ChannelCreator(CurrentChannel, "14")
     ch_15 = Instrument.ChannelCreator(CurrentChannel, "15")

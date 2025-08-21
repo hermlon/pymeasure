@@ -23,6 +23,7 @@
 #
 
 import pytest
+from itertools import product, chain
 
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import Mode, OnOff
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
@@ -32,7 +33,8 @@ from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
     VoltageChannelModeVoltage,
     VoltageChannelModeResistance,
     VoltageChannelModeCapacitance,
-    VoltageChannelMode,
+    VoltageChannelModeFrequency,
+    VoltageChannelModeNoRange,
     CurrentChannelMode,
     VoltageRange,
     ResistanceRange,
@@ -40,6 +42,7 @@ from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
     CurrentRange,
     ChannelSpeed,
     VoltageChannelConfig,
+    CurrentChannelConfig,
 )
 from pymeasure.units import ureg
 
@@ -47,6 +50,8 @@ from pymeasure.units import ureg
 @pytest.fixture(scope="module")
 def sdm3065xsc(connected_device_address):
     instr = SDM3065XSC(connected_device_address)
+    # enable for all following scancard tests to work
+    instr.sc_enabled = True
     return instr
 
 
@@ -56,11 +61,11 @@ def test_scan_card_enabled(sdm3065xsc, sc_enabled):
     assert sdm3065xsc.sc_enabled
     sdm3065xsc.sc_enabled = False
     assert not sdm3065xsc.sc_enabled
+    sdm3065xsc.sc_enabled = True
 
 
 @pytest.mark.parametrize("sc_start", [True, False])
 def test_scan_card_start(sdm3065xsc, sc_start):
-    sdm3065xsc.sc_enabled = True
     sdm3065xsc.sc_start = True
     assert sdm3065xsc.sc_start
     sdm3065xsc.sc_start = False
@@ -107,7 +112,6 @@ def test_channel_voltage(sdm3065xsc, ch):
     import time
 
     # print(getattr(sdm3065xsc, f"ch_{ch}").voltage)
-    sdm3065xsc.sc_enabled = True
     sdm3065xsc.sc_cycle_mode = CycleMode.MANUAL
     sdm3065xsc.sc_count = 2
     sdm3065xsc.sc_ch_limit_low = 1
@@ -120,16 +124,57 @@ def test_channel_voltage(sdm3065xsc, ch):
     # sdm3065xsc.sc_start = False
 
 
-@pytest.mark.parametrize("ch", range(1, 13))
-@pytest.mark.parametrize("switch", list(OnOff))
-@pytest.mark.parametrize("mode", list(VoltageChannelMode))
-@pytest.mark.parametrize("count", range(1, 3))
-def test_voltage_channel_config(sdm3065xsc, ch, switch, mode, count):
+@pytest.fixture(scope="module", params=range(1, 13))
+def voltage_channel(request, sdm3065xsc):
+    ch = request.param
     channel = getattr(sdm3065xsc, f"ch_{ch}")
-    sdm3065xsc.sc_enabled = True
-    conf = VoltageChannelConfig(switch, mode, count=count)
-    channel.config = conf
-    assert str(channel.config) == str(conf)
+    yield channel
 
 
-# TODO: test other channel modes, possibly extract test code to fixture
+@pytest.fixture(scope="module", params=range(13, 17))
+def current_channel(request, sdm3065xsc):
+    ch = request.param
+    channel = getattr(sdm3065xsc, f"ch_{ch}")
+    yield channel
+
+
+@pytest.mark.parametrize("count", range(1, 3))
+@pytest.mark.parametrize(
+    "mode,mrange,speed",
+    chain(
+        product(list(VoltageChannelModeNoRange), [None], [None]),
+        product(list(VoltageChannelModeVoltage), list(VoltageRange), list(ChannelSpeed)),
+        product(list(VoltageChannelModeResistance), list(ResistanceRange), list(ChannelSpeed)),
+        product(list(VoltageChannelModeCapacitance), list(CapacitanceRange), [None]),
+        product(list(VoltageChannelModeFrequency), list(VoltageRange), [None]),
+    ),
+)
+@pytest.mark.parametrize("switch", list(OnOff))
+def test_voltage_channel_config(sdm3065xsc, voltage_channel, switch, mode, mrange, speed, count):
+    if int(voltage_channel.id) in range(7, 13) and mode == VoltageChannelModeResistance.R4WIRE:
+        pytest.skip("4W not supported on channels 7 to 12")
+    conf = VoltageChannelConfig(switch, mode, mrange, speed, count=count)
+    voltage_channel.config = conf
+    assert str(voltage_channel.config) == str(conf)
+
+
+@pytest.mark.parametrize("count", range(1, 3))
+@pytest.mark.parametrize("speed", list(ChannelSpeed))
+@pytest.mark.parametrize("mode,mrange", product(list(CurrentChannelMode), list(CurrentRange)))
+@pytest.mark.parametrize("switch", list(OnOff))
+def test_current_channel_config(sdm3065xsc, current_channel, switch, mode, mrange, speed, count):
+    conf = CurrentChannelConfig(switch, mode, mrange, speed, count=count)
+    current_channel.config = conf
+    assert str(current_channel.config) == str(conf)
+
+
+def test_voltage_channel_4w(sdm3065xsc):
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(
+        OnOff.ON, VoltageChannelModeResistance.R4WIRE, ResistanceRange.AUTO, ChannelSpeed.FAST
+    )
+    sdm3065xsc.ch_6.config = VoltageChannelConfig(
+        OnOff.ON, VoltageChannelModeResistance.R4WIRE, ResistanceRange.AUTO, ChannelSpeed.FAST
+    )
+    sdm3065xsc.ch_7.config = VoltageChannelConfig(
+        OnOff.ON, VoltageChannelModeVoltage.VOLTAGE_AC, ResistanceRange.AUTO, ChannelSpeed.FAST
+    )
