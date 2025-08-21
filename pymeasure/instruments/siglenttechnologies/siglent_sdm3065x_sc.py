@@ -283,12 +283,53 @@ class CurrentChannelConfig(ChannelConfig):
         )
 
 
+def value_with_unit(unit_name):
+    def checker(v):
+        value, actual_unit = v[:-1].split(" ")
+        if not actual_unit.startswith(unit_name):
+            raise Exception(
+                f"Reading property expecting unit {unit_name} "
+                + f"but the measured value has unit {actual_unit}"
+            )
+        return value
+
+    return checker
+
+
 class VoltageChannel(Channel):
     voltage = Channel.measurement(
         "ROUTe:DATA? {ch}",
-        """Measure a DC or AC voltage in Volt.""",
-        preprocess_reply=lambda v: v.split(" ")[0],
+        """Measure a DC or AC voltage or a diode in Volt.""",
+        preprocess_reply=value_with_unit("V"),
         get_process=lambda v: ureg.Quantity(v, ureg.V),
+    )
+
+    resistance = Channel.measurement(
+        "ROUTe:DATA? {ch}",
+        """Measure a resistance or continuity in Ohm.""",
+        preprocess_reply=value_with_unit("OHM"),
+        get_process=lambda v: ureg.Quantity(v, ureg.ohm),
+    )
+
+    capacitance = Channel.measurement(
+        "ROUTe:DATA? {ch}",
+        """Measure a resistance in Farad.""",
+        preprocess_reply=value_with_unit("F"),
+        get_process=lambda v: ureg.Quantity(v, ureg.farad),
+    )
+
+    frequency = Channel.measurement(
+        "ROUTe:DATA? {ch}",
+        """Measure a resistance in Hertz.""",
+        preprocess_reply=value_with_unit("HZ"),
+        get_process=lambda v: ureg.Quantity(v, ureg.hertz),
+    )
+
+    temperature = Channel.measurement(
+        "ROUTe:DATA? {ch}",
+        """Measure a temperature in Celsius.""",
+        preprocess_reply=value_with_unit("C"),
+        get_process=lambda v: ureg.Quantity(v, ureg.celsius),
     )
 
     def validate_config(v, vs):
@@ -298,7 +339,7 @@ class VoltageChannel(Channel):
     config = Channel.control(
         "ROUTe:CHANnel? {ch}",
         "ROUTe:CHANnel {ch},%s",
-        """""",
+        """Configure the channel with a VoltageChannelConfig object.""",
         validator=validate_config,
         get_process_list=lambda v: VoltageChannelConfig.from_list(v[1:]),
         check_set_errors=True,
@@ -322,14 +363,14 @@ class CurrentChannel(Channel):
     current = Channel.measurement(
         "ROUTe:DATA? {ch}",
         """Measure a DC or AC current in Ampere.""",
-        preprocess_reply=lambda v: v.split(" ")[0],
+        preprocess_reply=value_with_unit("A"),
         get_process=lambda v: ureg.Quantity(v, ureg.A),
     )
 
     config = Channel.control(
         "ROUTe:CHANnel? {ch}",
         "ROUTe:CHANnel {ch},%s",
-        """""",
+        """Configure the channel with a CurrentChannelConfig object.""",
         get_process_list=lambda v: CurrentChannelConfig.from_list(v[1:]),
         check_set_errors=True,
     )
@@ -445,22 +486,37 @@ class SDM3065XSC(SDM3065X):
     sc_ch_limit_low = Instrument.control(
         "ROUTe:LIMIt:LOW?",
         "ROUTe:LIMIt:LOW %s",
-        """Control lower channel limit of channel numbers to be scanned""",
+        """Control lower channel limit of channel numbers to be scanned.""",
         validator=lambda v, vs: strict_discrete_range(v, vs, step=1),
         values=range(1, 17),
         set_process=lambda v: int(v),
+        get_process=lambda v: int(v),
         check_set_errors=True,
     )
 
     sc_ch_limit_high = Instrument.control(
         "ROUTe:LIMIt:HIGH?",
         "ROUTe:LIMIt:HIGH %s",
-        """Control upper channel limit of channel numbers to be scanned""",
+        """Control upper channel limit of channel numbers to be scanned.""",
         validator=lambda v, vs: strict_discrete_range(v, vs, step=1),
         values=range(1, 17),
         set_process=lambda v: int(v),
+        get_process=lambda v: int(v),
         check_set_errors=True,
     )
+
+    # sc_relative = Instrument.control()
+    # TODO
+
+    def set_channel_range(self, start, stop):
+        # The device silently discards set commands if limit_low <= limit_high is violated
+        # at any time. This function updates the values in the order in which it will succeed
+        if start < self.sc_ch_limit_high:
+            self.sc_ch_limit_low = start
+            self.sc_ch_limit_high = stop
+        else:
+            self.sc_ch_limit_high = stop
+            self.sc_ch_limit_low = start
 
     def reset(self):
         super().reset()

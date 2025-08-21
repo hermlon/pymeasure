@@ -23,6 +23,7 @@
 #
 
 import pytest
+import random
 from itertools import product, chain
 
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import Mode, OnOff
@@ -97,11 +98,15 @@ def test_count(sdm3065xsc, count):
 
 
 @pytest.mark.parametrize(
-    "ch_low,ch_high", [(low, high) for high in range(1, 17) for low in range(1, high + 1)]
+    "ch_low,ch_high",
+    # test in random order as set_channel_range should work independent of previously set values
+    sorted(
+        [(low, high) for high in range(1, 17) for low in range(1, high + 1)],
+        key=lambda _: random.random(),
+    ),
 )
-def test_sc_limit(sdm3065xsc, ch_low, ch_high):
-    sdm3065xsc.sc_ch_limit_low = ch_low
-    sdm3065xsc.sc_ch_limit_high = ch_high
+def test_set_channel_range(sdm3065xsc, ch_low, ch_high):
+    sdm3065xsc.set_channel_range(ch_low, ch_high)
     assert sdm3065xsc.sc_ch_limit_low == ch_low
     assert sdm3065xsc.sc_ch_limit_high == ch_high
 
@@ -165,13 +170,52 @@ def test_current_channel_config(sdm3065xsc, current_channel, switch, mode, mrang
     assert str(current_channel.config) == str(conf)
 
 
-def test_voltage_channel_4w(sdm3065xsc):
+def test_channel_measurements(sdm3065xsc):
+    sdm3065xsc.reset()
+    sdm3065xsc.sc_cycle_mode = CycleMode.MANUAL
+    sdm3065xsc.sc_count = 1
+    sdm3065xsc.set_channel_range(13, 13)
+
+    sdm3065xsc.ch_13.config = CurrentChannelConfig(
+        OnOff.ON, CurrentChannelMode.CURRENT_AC, CurrentRange.A_2, ChannelSpeed.FAST
+    )
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_13.current > 0
+
+    sdm3065xsc.set_channel_range(1, 1)
+
     sdm3065xsc.ch_1.config = VoltageChannelConfig(
-        OnOff.ON, VoltageChannelModeResistance.R4WIRE, ResistanceRange.AUTO, ChannelSpeed.FAST
+        OnOff.ON, VoltageChannelModeVoltage.VOLTAGE_DC, VoltageRange.AUTO, ChannelSpeed.FAST
     )
-    sdm3065xsc.ch_6.config = VoltageChannelConfig(
-        OnOff.ON, VoltageChannelModeResistance.R4WIRE, ResistanceRange.AUTO, ChannelSpeed.FAST
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.voltage > 0
+
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(
+        OnOff.ON, VoltageChannelModeResistance.R2WIRE, ResistanceRange.AUTO, ChannelSpeed.FAST
     )
-    sdm3065xsc.ch_7.config = VoltageChannelConfig(
-        OnOff.ON, VoltageChannelModeVoltage.VOLTAGE_AC, ResistanceRange.AUTO, ChannelSpeed.FAST
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.resistance > 0
+
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(
+        OnOff.ON, VoltageChannelModeCapacitance.CAPACITANCE, CapacitanceRange.AUTO
     )
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.capacitance > 0
+
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(
+        OnOff.ON, VoltageChannelModeFrequency.FREQUENCY, VoltageRange.AUTO
+    )
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.frequency > 0
+
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(OnOff.ON, VoltageChannelModeNoRange.CONTINUITY)
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.resistance > 0
+
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(OnOff.ON, VoltageChannelModeNoRange.DIODE)
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.voltage > 0
+
+    sdm3065xsc.ch_1.config = VoltageChannelConfig(OnOff.ON, VoltageChannelModeNoRange.TEMPERATURE)
+    sdm3065xsc.scan()
+    assert sdm3065xsc.ch_1.temperature.to("kelvin") != 0
