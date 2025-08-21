@@ -106,22 +106,19 @@ def test_sc_limit(sdm3065xsc, ch_low, ch_high):
     assert sdm3065xsc.sc_ch_limit_high == ch_high
 
 
-@pytest.mark.parametrize("ch", range(1, 2))
-def test_channel_voltage(sdm3065xsc, ch):
-    print("hi")
-    import time
-
-    # print(getattr(sdm3065xsc, f"ch_{ch}").voltage)
+def test_channel_voltage(sdm3065xsc):
+    sdm3065xsc.reset()
     sdm3065xsc.sc_cycle_mode = CycleMode.MANUAL
-    sdm3065xsc.sc_count = 2
+    sdm3065xsc.sc_count = 1
     sdm3065xsc.sc_ch_limit_low = 1
     sdm3065xsc.sc_ch_limit_high = 2
-    sdm3065xsc.sc_start = True
-    time.sleep(2)
-    print(sdm3065xsc.ch_1.voltage)
-    print(sdm3065xsc.ch_1.voltage)
-    sdm3065xsc.ch_1.switch = False
-    # sdm3065xsc.sc_start = False
+
+    sdm3065xsc.scan()
+
+    assert sdm3065xsc.ch_1.voltage > 0
+    assert sdm3065xsc.ch_2.voltage > 0
+    assert sdm3065xsc.ch_1.voltage == 0
+    assert sdm3065xsc.ch_2.voltage == 0
 
 
 @pytest.fixture(scope="module", params=range(1, 13))

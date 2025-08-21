@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 #
 from enum import StrEnum
+import time
 
 from pymeasure.instruments import Instrument
 from pymeasure.instruments.channel import Channel
@@ -346,6 +347,7 @@ class SDM3065XSC(SDM3065X):
             **kwargs,
         )
         assert self.sc_installed
+        self.sc_enabled = True
 
     ch_1 = Instrument.ChannelCreator(VoltageChannel, "1")
     ch_2 = Instrument.ChannelCreator(VoltageChannel, "2")
@@ -432,8 +434,8 @@ class SDM3065XSC(SDM3065X):
         "ROUTe:COUNt?",
         "ROUTe:COUNt %s",
         """Control number of times to repeat scanning all channels after sc_start was sent.
-        This setting is only relevant when sc_cycle_mode is CycleMode.MANUAL, as in CycleMode.AUTO \
-            measurements run indefinitely until sc_start is disabled.
+        This setting automatically switches sc_cycle_mode to CycleMode.MANUAL, as in \
+            CycleMode.AUTO measurements run indefinitely until sc_start is disabled.
         """,
         validator=lambda v, vs: strict_discrete_range(v, vs, step=1),
         values=range(1, 1000),
@@ -459,3 +461,21 @@ class SDM3065XSC(SDM3065X):
         set_process=lambda v: int(v),
         check_set_errors=True,
     )
+
+    def reset(self):
+        super().reset()
+        self.sc_enabled = True
+
+    def scan(self):
+        self.sc_start = True
+        self.wait_until_stopped()
+
+    def wait_until_stopped(self, user_will_push_stop_button=False):
+        if self.sc_cycle_mode == CycleMode.AUTO and not user_will_push_stop_button:
+            raise Exception(
+                "In CycleMode.AUTO the scan will not stop by itself, so the user has to push the "
+                + "stop button to terminate the scan. Set user_will_push_stop_button=True "
+                + "if you want to use this function with user interaction."
+            )
+        while self.sc_start:
+            time.sleep(0.5)
