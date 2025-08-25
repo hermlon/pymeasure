@@ -1,6 +1,6 @@
-###############################
+#####################################################
 Siglent SDM3065X-SC Digital Multimeter with scan card
-###############################
+#####################################################
 
 .. autoclass:: pymeasure.instruments.siglenttechnologies.SDM3065XSC
     :members:
