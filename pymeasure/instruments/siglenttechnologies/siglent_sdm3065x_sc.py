@@ -132,8 +132,8 @@ class CurrentRange(StrEnum):
 
 
 class ChannelSpeed(StrEnum):
-    SLOW = "SLOW"
-    FAST = "FAST"
+    SLOW = "SLOW"  # 10 PLC, 5 readings/s
+    FAST = "FAST"  # 1 PLC, 50 readings/s
 
 
 class ChannelConfig:
@@ -156,6 +156,10 @@ class ChannelConfig:
         self._speed = speed
         self._count = count
         self.validate()
+
+    def disable(self):
+        self._switch = False
+        return self
 
     def validate(self):
         pass
@@ -259,7 +263,7 @@ class VoltageChannelConfig(ChannelConfig):
                     VoltageRange(mrange),
                     None,
                 )
-            return ChannelConfig(
+            return VoltageChannelConfig(
                 OnOff(switch),
                 enum_mode,
                 enum_mrange,
@@ -295,7 +299,7 @@ class CurrentChannelConfig(ChannelConfig):
     @classmethod
     def from_list(cls, lst):
         switch, mode, mrange, speed, count = lst
-        return ChannelConfig(
+        return CurrentChannelConfig(
             OnOff(switch),
             CurrentChannelMode(mode),
             CurrentRange(mrange),
@@ -652,6 +656,12 @@ class SDM3065XSC(SDM3065X):
     def scan(self):
         self.sc_start = True
         self.wait_until_stopped()
+
+    def disable_all(self):
+        channels = SDM3065XSC.get_channels(SDM3065XSC)
+        for name, _ in channels:
+            channel = getattr(self, name)
+            channel.config = channel.config.disable()
 
     def wait_until_stopped(self, user_will_push_stop_button=False):
         if self.sc_cycle_mode == CycleMode.AUTO and not user_will_push_stop_button:
