@@ -45,6 +45,27 @@ class CycleMode(StrEnum):
     MANUAL = "OFF"
 
 
+class InputImpedance(StrEnum):
+    M_10 = "10M"
+    G_10 = "10G"
+
+
+class ThermalResistanceSensorModel(StrEnum):
+    PT100 = "PT100"
+    PT1000 = "PT1000"
+
+
+class ThermocoupleSensorModel(StrEnum):
+    BITS90 = "BITS90"
+    EITS90 = "EITS90"
+    JITS90 = "JITS90"
+    KITS90 = "KITS90"
+    NITS90 = "NITS90"
+    RITS90 = "RITS90"
+    SITS90 = "SITS90"
+    TITS90 = "TITS90"
+
+
 class VoltageChannelModeVoltage(StrEnum):
     VOLTAGE_DC = "DCV"
     VOLTAGE_AC = "ACV"
@@ -296,6 +317,19 @@ def value_with_unit(unit_name):
     return checker
 
 
+def value_with_mode(mode_name):
+    def checker(v):
+        mode, value = v.split(",")
+        if not mode == mode_name:
+            raise Exception(
+                f"Reading property expecting mode {mode_name} "
+                + f"but the measured value is for mode {mode}"
+            )
+        return value
+
+    return checker
+
+
 class VoltageChannel(Channel):
     voltage = Channel.measurement(
         "ROUTe:DATA? {ch}",
@@ -505,8 +539,43 @@ class SDM3065XSC(SDM3065X):
         check_set_errors=True,
     )
 
-    # sc_relative = Instrument.control()
-    # TODO
+    sc_impedance = Instrument.control(
+        "ROUTe:IMPedance?",
+        "ROUTe:IMPedance %s",
+        """Control the input impedance of the scan card track.
+        
+        InputImpedance.M10, InputImpedance.G_10""",
+        validator=strict_discrete_set,
+        map_values=True,
+        values={u: u.value for u in InputImpedance},
+        check_set_errors=True,
+    )
+
+    sc_thermal_resistance_sensor_model = Instrument.control(
+        "ROUTe:TEMPerature:TRAN?",
+        "ROUTe:TEMPerature:RTD %s",
+        """Control the thermal resistance sensor model.
+        
+        ThermalResistanceValueModel.P100, ThermalResistanceValueModel.P1000""",
+        validator=strict_discrete_set,
+        map_values=True,
+        preprocess_reply=value_with_mode("RTD"),
+        values={u: u.value for u in ThermalResistanceSensorModel},
+        check_set_errors=True,
+    )
+
+    sc_thermocouple_sensor_model = Instrument.control(
+        "ROUTe:TEMPerature:TRAN?",
+        "ROUTe:TEMPerature:THER %s",
+        """Control the thermocouple sensor model.
+        
+        ThermocoupleSensorModel""",
+        validator=strict_discrete_set,
+        map_values=True,
+        preprocess_reply=value_with_mode("THER"),
+        values={u: u.value for u in ThermocoupleSensorModel},
+        check_set_errors=True,
+    )
 
     def set_channel_range(self, start, stop):
         # The device silently discards set commands if limit_low <= limit_high is violated

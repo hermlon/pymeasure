@@ -44,6 +44,9 @@ from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
     ChannelSpeed,
     VoltageChannelConfig,
     CurrentChannelConfig,
+    InputImpedance,
+    ThermalResistanceSensorModel,
+    ThermocoupleSensorModel,
 )
 from pymeasure.units import ureg
 
@@ -219,3 +222,21 @@ def test_channel_measurements(sdm3065xsc):
     sdm3065xsc.ch_1.config = VoltageChannelConfig(OnOff.ON, VoltageChannelModeNoRange.TEMPERATURE)
     sdm3065xsc.scan()
     assert sdm3065xsc.ch_1.temperature.to("kelvin") != 0
+
+
+@pytest.mark.parametrize("input_impedance", list(InputImpedance))
+def test_input_impedance(sdm3065xsc, input_impedance):
+    sdm3065xsc.sc_impedance = input_impedance
+    assert sdm3065xsc.sc_impedance == input_impedance
+
+
+@pytest.mark.parametrize("model", list(ThermalResistanceSensorModel))
+def test_thermal_resistance_sensor_model(sdm3065xsc, model):
+    sdm3065xsc.sc_thermal_resistance_sensor_model = model
+    assert sdm3065xsc.sc_thermal_resistance_sensor_model == model
+
+
+@pytest.mark.parametrize("model", list(ThermocoupleSensorModel))
+def test_thermocouple_sensor_model(sdm3065xsc, model):
+    sdm3065xsc.sc_thermocouple_sensor_model = model
+    assert sdm3065xsc.sc_thermocouple_sensor_model == model
