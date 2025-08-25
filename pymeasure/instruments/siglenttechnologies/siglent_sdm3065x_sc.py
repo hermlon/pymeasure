@@ -577,6 +577,64 @@ class SDM3065XSC(SDM3065X):
         check_set_errors=True,
     )
 
+    sc_auto_zero_dc_voltage = Instrument.control(
+        "ROUTe:DCV:AZ?",
+        "ROUTe:DCV:AZ %s",
+        """Control auto-zero for DC voltage.""",
+        set_process=lambda v: OnOff(v).value,
+        get_process=lambda v: bool(OnOff(v)),
+        check_set_errors=True,
+    )
+
+    sc_auto_zero_dc_current = Instrument.control(
+        "ROUTe:DCI:AZ?",
+        "ROUTe:DCI:AZ %s",
+        """Control auto-zero for DC current.""",
+        set_process=lambda v: OnOff(v).value,
+        get_process=lambda v: bool(OnOff(v)),
+        check_set_errors=True,
+    )
+
+    sc_auto_zero_resistance = Instrument.control(
+        "ROUTe:RESistance:AZ?",
+        "ROUTe:RESistance:AZ %s",
+        """Control auto-zero for resistance measurement.""",
+        set_process=lambda v: OnOff(v).value,
+        get_process=lambda v: bool(OnOff(v)),
+        check_set_errors=True,
+    )
+
+    sc_auto_zero_resistance_4w = Instrument.control(
+        "ROUTe:FRESistance:AZ?",
+        "ROUTe:FRESistance:AZ %s",
+        """Control auto-zero for 4 wire resistance measurement.""",
+        set_process=lambda v: OnOff(v).value,
+        get_process=lambda v: bool(OnOff(v)),
+        check_set_errors=True,
+    )
+
+    sc_frequency_gate_time = Instrument.control(
+        "ROUTe:FREQuency:APERture?",
+        "ROUTe:FREQuency:APERture %s",
+        """Control the gate time of frequency measurement mode.
+        
+        0.001, 0.01, 0.1, 1 in seconds""",
+        validator=strict_discrete_set,
+        values=[0.001, 0.01, 0.1, 1],
+        check_set_errors=True,
+    )
+
+    sc_period_gate_time = Instrument.control(
+        "ROUTe:PERiod:APERture?",
+        "ROUTe:PERiod:APERture %s",
+        """Control the gate time of period measurement mode.
+        
+        0.001, 0.01, 0.1, 1 in seconds""",
+        validator=strict_discrete_set,
+        values=[0.001, 0.01, 0.1, 1],
+        check_set_errors=True,
+    )
+
     def set_channel_range(self, start, stop):
         # The device silently discards set commands if limit_low <= limit_high is violated
         # at any time. This function updates the values in the order in which it will succeed

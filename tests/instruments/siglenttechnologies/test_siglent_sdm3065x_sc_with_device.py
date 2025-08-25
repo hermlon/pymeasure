@@ -240,3 +240,39 @@ def test_thermal_resistance_sensor_model(sdm3065xsc, model):
 def test_thermocouple_sensor_model(sdm3065xsc, model):
     sdm3065xsc.sc_thermocouple_sensor_model = model
     assert sdm3065xsc.sc_thermocouple_sensor_model == model
+
+
+@pytest.mark.parametrize("auto_zero", [True, False])
+def test_auto_zero_dc_voltage(sdm3065xsc, auto_zero):
+    sdm3065xsc.sc_auto_zero_dc_voltage = auto_zero
+    assert sdm3065xsc.sc_auto_zero_dc_voltage == auto_zero
+
+
+@pytest.mark.parametrize("auto_zero", [True, False])
+def test_auto_zero_dc_current(sdm3065xsc, auto_zero):
+    sdm3065xsc.sc_auto_zero_dc_current = auto_zero
+    assert sdm3065xsc.sc_auto_zero_dc_current == auto_zero
+
+
+@pytest.mark.parametrize("auto_zero", [True, False])
+def test_auto_zero_resistance(sdm3065xsc, auto_zero):
+    sdm3065xsc.sc_auto_zero_resistance = auto_zero
+    assert sdm3065xsc.sc_auto_zero_resistance == auto_zero
+
+
+@pytest.mark.parametrize("auto_zero", [True, False])
+def test_auto_zero_resistance_4w(sdm3065xsc, auto_zero):
+    sdm3065xsc.sc_auto_zero_resistance_4w = auto_zero
+    assert sdm3065xsc.sc_auto_zero_resistance_4w == auto_zero
+
+
+@pytest.mark.parametrize("time", [0.001, 0.01, 0.1, 1])
+def test_frequency_gate_time(sdm3065xsc, time):
+    sdm3065xsc.sc_frequency_gate_time = time
+    assert sdm3065xsc.sc_frequency_gate_time == time
+
+
+@pytest.mark.parametrize("time", [0.001, 0.01, 0.1, 1])
+def test_period_gate_time(sdm3065xsc, time):
+    sdm3065xsc.sc_period_gate_time = time
+    assert sdm3065xsc.sc_period_gate_time == time
