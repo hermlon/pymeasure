@@ -21,15 +21,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-import logging
 from enum import StrEnum
 from pymeasure.instruments import Instrument, SCPIMixin
-from pymeasure.instruments.channel import Channel
-from pymeasure.instruments.validators import (
-    strict_discrete_range,
-    strict_discrete_set,
-    truncated_range,
-)
+from pymeasure.instruments.validators import strict_discrete_set
 from pymeasure.units import ureg
 
 

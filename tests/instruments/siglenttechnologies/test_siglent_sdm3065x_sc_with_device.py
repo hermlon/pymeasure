@@ -26,7 +26,7 @@ import pytest
 import random
 from itertools import product, chain
 
-from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import Mode, OnOff
+from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import OnOff
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
     SDM3065XSC,
     LoopMode,
@@ -48,7 +48,6 @@ from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x_sc import (
     ThermalResistanceSensorModel,
     ThermocoupleSensorModel,
 )
-from pymeasure.units import ureg
 
 
 @pytest.fixture(scope="module")

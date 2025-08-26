@@ -498,7 +498,7 @@ class SDM3065XSC(SDM3065X):
         "ROUTe:COUNt:AUTO?",
         "ROUTe:COUNt:AUTO %s",
         """Control the scan card cycle mode.
-        
+ 
         CycleMode.AUTO: measure values when receiving sc_start signal until stop
         CycleMode.MANUAL: when receiving sc_start signal, stop after doing sc_count measurements \
             of all channels
@@ -547,7 +547,7 @@ class SDM3065XSC(SDM3065X):
         "ROUTe:IMPedance?",
         "ROUTe:IMPedance %s",
         """Control the input impedance of the scan card track.
-        
+ 
         InputImpedance.M10, InputImpedance.G_10""",
         validator=strict_discrete_set,
         map_values=True,
@@ -559,7 +559,7 @@ class SDM3065XSC(SDM3065X):
         "ROUTe:TEMPerature:TRAN?",
         "ROUTe:TEMPerature:RTD %s",
         """Control the thermal resistance sensor model.
-        
+ 
         ThermalResistanceValueModel.P100, ThermalResistanceValueModel.P1000""",
         validator=strict_discrete_set,
         map_values=True,
@@ -572,7 +572,7 @@ class SDM3065XSC(SDM3065X):
         "ROUTe:TEMPerature:TRAN?",
         "ROUTe:TEMPerature:THER %s",
         """Control the thermocouple sensor model.
-        
+ 
         ThermocoupleSensorModel""",
         validator=strict_discrete_set,
         map_values=True,
@@ -621,7 +621,7 @@ class SDM3065XSC(SDM3065X):
         "ROUTe:FREQuency:APERture?",
         "ROUTe:FREQuency:APERture %s",
         """Control the gate time of frequency measurement mode.
-        
+ 
         0.001, 0.01, 0.1, 1 in seconds""",
         validator=strict_discrete_set,
         values=[0.001, 0.01, 0.1, 1],
