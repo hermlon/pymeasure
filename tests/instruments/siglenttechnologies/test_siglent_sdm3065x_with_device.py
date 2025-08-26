@@ -25,7 +25,6 @@
 import pytest
 
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import SDM3065X, Mode
-from pymeasure.units import ureg
 
 
 @pytest.fixture(scope="module")

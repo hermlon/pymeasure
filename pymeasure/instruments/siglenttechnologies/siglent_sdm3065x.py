@@ -61,7 +61,6 @@ class SDM3065X(SCPIMixin, Instrument):
         "CONF?",
         "CONF:%s",
         """Control the measurement mode of the multimeter.
-        
         Allowed modes are Mode.CURRENT_AC, Mode.CURREND_DC.""",
         validator=strict_discrete_set,
         map_values=True,
