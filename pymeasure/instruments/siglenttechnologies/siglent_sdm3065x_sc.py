@@ -21,7 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-from enum import StrEnum
 import time
 
 from pymeasure.instruments import Instrument
@@ -33,6 +32,16 @@ from pymeasure.instruments.validators import (
 from pymeasure.units import ureg
 
 from pymeasure.instruments.siglenttechnologies.siglent_sdm3065x import SDM3065X, OnOff
+
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Until StrEnum is broadly available from the standard library"""
+
+        # Python>3.10 remove it.
 
 
 class LoopMode(StrEnum):
