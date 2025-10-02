@@ -15,3 +15,4 @@ This section contains specific documentation on the Siglent Technologies instrum
    siglent_sds1072cml
    siglent_sdm3065x
    siglent_sdm3065x_sc
+   siglent_sdl1000x
